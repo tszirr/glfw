@@ -243,8 +243,9 @@ int _glfwPlatformWindowVisible(_GLFWwindow* window)
     return GLFW_FALSE;
 }
 
-void _glfwPlatformPollEvents(void)
+int _glfwPlatformPollEvents(void)
 {
+    return GLFW_FALSE;
 }
 
 void _glfwPlatformWaitEvents(void)

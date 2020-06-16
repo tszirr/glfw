@@ -1884,14 +1884,16 @@ GLFWbool _glfwPlatformRawMouseMotionSupported(void)
     return GLFW_TRUE;
 }
 
-void _glfwPlatformPollEvents(void)
+int _glfwPlatformPollEvents(void)
 {
+    int hadEvents = GLFW_FALSE;
     MSG msg;
     HWND handle;
     _GLFWwindow* window;
 
     while (PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE))
     {
+        hadEvents = GLFW_TRUE;
         if (msg.message == WM_QUIT)
         {
             // NOTE: While GLFW does not itself post WM_QUIT, other processes
@@ -1945,6 +1947,7 @@ void _glfwPlatformPollEvents(void)
                 if (window->keys[key] != GLFW_PRESS)
                     continue;
 
+                hadEvents = GLFW_TRUE;
                 _glfwInputKey(window, key, scancode, GLFW_RELEASE, getKeyMods());
             }
         }
@@ -1964,6 +1967,8 @@ void _glfwPlatformPollEvents(void)
             _glfwPlatformSetCursorPos(window, width / 2, height / 2);
         }
     }
+
+    return hadEvents;
 }
 
 void _glfwPlatformWaitEvents(void)

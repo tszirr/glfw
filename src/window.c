@@ -1069,10 +1069,10 @@ GLFWAPI GLFWwindowcontentscalefun glfwSetWindowContentScaleCallback(GLFWwindow* 
     return cbfun;
 }
 
-GLFWAPI void glfwPollEvents(void)
+GLFWAPI int glfwPollEvents(void)
 {
-    _GLFW_REQUIRE_INIT();
-    _glfwPlatformPollEvents();
+    _GLFW_REQUIRE_INIT_OR_RETURN(GLFW_FALSE);
+    return _glfwPlatformPollEvents();
 }
 
 GLFWAPI void glfwWaitEvents(void)

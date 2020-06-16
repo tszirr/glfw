@@ -1370,9 +1370,11 @@ GLFWbool _glfwPlatformRawMouseMotionSupported(void)
     return GLFW_FALSE;
 }
 
-void _glfwPlatformPollEvents(void)
+int _glfwPlatformPollEvents(void)
 {
     @autoreleasepool {
+
+    int hadEvent = GLFW_FALSE;
 
     for (;;)
     {
@@ -1382,9 +1384,12 @@ void _glfwPlatformPollEvents(void)
                                               dequeue:YES];
         if (event == nil)
             break;
+        hadEvent = GLFW_TRUE;
 
         [NSApp sendEvent:event];
     }
+
+    return hadEvent;
 
     } // autoreleasepool
 }

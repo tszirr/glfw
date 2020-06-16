@@ -702,7 +702,7 @@ static void incrementCursorImage(_GLFWwindow* window)
     }
 }
 
-static void handleEvents(int timeout)
+static int handleEvents(int timeout)
 {
     struct wl_display* display = _glfw.wl.display;
     struct pollfd fds[] = {
@@ -713,8 +713,11 @@ static void handleEvents(int timeout)
     ssize_t read_ret;
     uint64_t repeats, i;
 
-    while (wl_display_prepare_read(display) != 0)
+    int hadEvents = GLFW_FALSE;
+    while (wl_display_prepare_read(display) != 0) {
+        hadEvents = GLFW_TRUE;
         wl_display_dispatch_pending(display);
+    }
 
     // If an error different from EAGAIN happens, we have likely been
     // disconnected from the Wayland session, try to handle that the best we
@@ -728,11 +731,12 @@ static void handleEvents(int timeout)
             window = window->next;
         }
         wl_display_cancel_read(display);
-        return;
+        return GLFW_TRUE;
     }
 
     if (poll(fds, 3, timeout) > 0)
     {
+        hadEvents = GLFW_TRUE;
         if (fds[0].revents & POLLIN)
         {
             wl_display_read_events(display);
@@ -747,7 +751,7 @@ static void handleEvents(int timeout)
         {
             read_ret = read(_glfw.wl.timerfd, &repeats, sizeof(repeats));
             if (read_ret != 8)
-                return;
+                return GLFW_TRUE;
 
             for (i = 0; i < repeats; ++i)
                 _glfwInputKey(_glfw.wl.keyboardFocus, _glfw.wl.keyboardLastKey,
@@ -759,7 +763,7 @@ static void handleEvents(int timeout)
         {
             read_ret = read(_glfw.wl.cursorTimerfd, &repeats, sizeof(repeats));
             if (read_ret != 8)
-                return;
+                return GLFW_TRUE;
 
             incrementCursorImage(_glfw.wl.pointerFocus);
         }
@@ -768,6 +772,7 @@ static void handleEvents(int timeout)
     {
         wl_display_cancel_read(display);
     }
+    return hadEvents;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -1137,9 +1142,9 @@ GLFWbool _glfwPlatformRawMouseMotionSupported(void)
     return GLFW_TRUE;
 }
 
-void _glfwPlatformPollEvents(void)
+int _glfwPlatformPollEvents(void)
 {
-    handleEvents(0);
+    return handleEvents(0);
 }
 
 void _glfwPlatformWaitEvents(void)

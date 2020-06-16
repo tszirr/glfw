@@ -2778,8 +2778,9 @@ GLFWbool _glfwPlatformRawMouseMotionSupported(void)
     return _glfw.x11.xi.available;
 }
 
-void _glfwPlatformPollEvents(void)
+int _glfwPlatformPollEvents(void)
 {
+    int hadEvents = GLFW_FALSE;
     _GLFWwindow* window;
 
 #if defined(__linux__)
@@ -2789,6 +2790,7 @@ void _glfwPlatformPollEvents(void)
 
     while (QLength(_glfw.x11.display))
     {
+        hadEvents = GLFW_TRUE;
         XEvent event;
         XNextEvent(_glfw.x11.display, &event);
         processEvent(&event);
@@ -2810,6 +2812,7 @@ void _glfwPlatformPollEvents(void)
     }
 
     XFlush(_glfw.x11.display);
+    return hadEvents;
 }
 
 void _glfwPlatformWaitEvents(void)
