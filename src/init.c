@@ -225,6 +225,7 @@ void _glfwInputError(int code, const char* format, ...)
 
 GLFWAPI int glfwInit(void)
 {
+    printf("Modified GLFW INIT!\n");
     if (_glfw.initialized)
         return GLFW_TRUE;
 

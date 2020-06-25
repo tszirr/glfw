@@ -558,8 +558,10 @@ static void disableRawMouseMotion(_GLFWwindow* window)
 //
 static void disableCursor(_GLFWwindow* window)
 {
+#ifdef AVOID_RAW_INPUT_EVENTS
     if (window->rawMouseMotion)
         enableRawMouseMotion(window);
+#endif
 
     _glfw.x11.disabledCursorWindow = window;
     _glfwPlatformGetCursorPos(window,
@@ -579,8 +581,10 @@ static void disableCursor(_GLFWwindow* window)
 //
 static void enableCursor(_GLFWwindow* window)
 {
+#ifdef AVOID_RAW_INPUT_EVENTS
     if (window->rawMouseMotion)
         disableRawMouseMotion(window);
+#endif
 
     _glfw.x11.disabledCursorWindow = NULL;
     XUngrabPointer(_glfw.x11.display, CurrentTime);
@@ -1192,11 +1196,7 @@ static void processEvent(XEvent *event)
     {
         if (_glfw.x11.xi.available)
         {
-            _GLFWwindow* window = _glfw.x11.disabledCursorWindow;
-
-            if (window &&
-                window->rawMouseMotion &&
-                event->xcookie.extension == _glfw.x11.xi.majorOpcode &&
+            if (event->xcookie.extension == _glfw.x11.xi.majorOpcode &&
                 XGetEventData(_glfw.x11.display, &event->xcookie) &&
                 event->xcookie.evtype == XI_RawMotion)
             {
@@ -1204,19 +1204,56 @@ static void processEvent(XEvent *event)
                 if (re->valuators.mask_len)
                 {
                     const double* values = re->raw_values;
-                    double xpos = window->virtualCursorPosX;
-                    double ypos = window->virtualCursorPosY;
+                    double dx = 0.0, dy = 0.0;
 
                     if (XIMaskIsSet(re->valuators.mask, 0))
                     {
-                        xpos += *values;
+                        dx = *values;
                         values++;
                     }
 
                     if (XIMaskIsSet(re->valuators.mask, 1))
-                        ypos += *values;
+                    {
+                        dy = *values;
+                        values++;
+                    }
 
-                    _glfwInputCursorPos(window, xpos, ypos);
+                    if (dx || dy)
+                    {
+                        _GLFWwindow* window = _glfw.x11.disabledCursorWindow;
+                        if (window && window->rawMouseMotion)
+                        {
+                            double xpos = window->virtualCursorPosX + dx;
+                            double ypos = window->virtualCursorPosY + dy;
+                            _glfwInputCursorPos(window, xpos, ypos);
+                        }
+                    }
+
+                    double xscroll = 0.0, yscroll = 0.0;
+#if 0
+                    for (int i = 2; i < 8; ++i) {
+                        if (XIMaskIsSet(re->valuators.mask, i)) {
+                            yscroll -= *values / 100;
+                            values++;
+                            printf("%d: %f\n", i, yscroll);
+                        }
+                    }
+#endif
+                    if (XIMaskIsSet(re->valuators.mask, 2))
+                    {
+                        xscroll = *values / 70.0;
+                        values++;
+                    }
+
+                    if (XIMaskIsSet(re->valuators.mask, 3))
+                        yscroll = *values / 70.0;
+
+                    if (xscroll || yscroll)
+                    {
+                        _GLFWwindow* window = _glfw.x11.rawScrollWindow;
+                        if (window)
+                            _glfwInputScroll(window, xscroll, yscroll);
+                    }
                 }
             }
 
@@ -1405,13 +1442,13 @@ static void processEvent(XEvent *event)
 
             // Modern X provides scroll events as mouse button presses
             else if (event->xbutton.button == Button4)
-                _glfwInputScroll(window, 0.0, 1.0);
+                _glfw.x11.rawScrollWindow == window || (_glfwInputScroll(window, 0.0, 1.0), 1);
             else if (event->xbutton.button == Button5)
-                _glfwInputScroll(window, 0.0, -1.0);
+                _glfw.x11.rawScrollWindow == window || (_glfwInputScroll(window, 0.0, -1.0), 1);
             else if (event->xbutton.button == Button6)
-                _glfwInputScroll(window, 1.0, 0.0);
+                _glfw.x11.rawScrollWindow == window || (_glfwInputScroll(window, 1.0, 0.0), 1);
             else if (event->xbutton.button == Button7)
-                _glfwInputScroll(window, -1.0, 0.0);
+                _glfw.x11.rawScrollWindow == window || (_glfwInputScroll(window, -1.0, 0.0), 1);
 
             else
             {
@@ -2035,6 +2072,14 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
     if (!createNativeWindow(window, wndconfig, visual, depth))
         return GLFW_FALSE;
 
+#ifndef AVOID_RAW_INPUT_EVENTS
+    if (_glfw.x11.xi.available) {
+        enableRawMouseMotion(window);
+        if (_glfw.x11.xi.rawScroll)
+            _glfw.x11.rawScrollWindow = window;
+    }
+#endif
+
     if (ctxconfig->client != GLFW_NO_API)
     {
         if (ctxconfig->source == GLFW_NATIVE_CONTEXT_API)
@@ -2067,8 +2112,15 @@ int _glfwPlatformCreateWindow(_GLFWwindow* window,
 
 void _glfwPlatformDestroyWindow(_GLFWwindow* window)
 {
+#ifndef AVOID_RAW_INPUT_EVENTS
+    if (_glfw.x11.xi.available)
+        disableRawMouseMotion(window);
+#endif
+
     if (_glfw.x11.disabledCursorWindow == window)
         _glfw.x11.disabledCursorWindow = NULL;
+    if (_glfw.x11.rawScrollWindow == window)
+        _glfw.x11.rawScrollWindow = NULL;
 
     if (window->monitor)
         releaseMonitor(window);
@@ -2766,11 +2818,12 @@ void _glfwPlatformSetRawMouseMotion(_GLFWwindow *window, GLFWbool enabled)
 
     if (_glfw.x11.disabledCursorWindow != window)
         return;
-
+#ifdef AVOID_RAW_INPUT_EVENTS
     if (enabled)
         enableRawMouseMotion(window);
     else
         disableRawMouseMotion(window);
+#endif
 }
 
 GLFWbool _glfwPlatformRawMouseMotionSupported(void)

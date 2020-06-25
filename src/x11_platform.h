@@ -446,6 +446,7 @@ typedef struct _GLFWlibraryX11
     double          restoreCursorPosX, restoreCursorPosY;
     // The window whose disabled cursor mode is active
     _GLFWwindow*    disabledCursorWindow;
+    _GLFWwindow*    rawScrollWindow;
 
     // Window manager atoms
     Atom            NET_SUPPORTED;
@@ -701,6 +702,7 @@ typedef struct _GLFWlibraryX11
 
     struct {
         GLFWbool    available;
+        GLFWbool    rawScroll;
         void*       handle;
         int         majorOpcode;
         int         eventBase;

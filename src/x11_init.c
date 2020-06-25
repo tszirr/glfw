@@ -638,13 +638,26 @@ static GLFWbool initExtensions(void)
                             &_glfw.x11.xi.errorBase))
         {
             _glfw.x11.xi.major = 2;
-            _glfw.x11.xi.minor = 0;
+            _glfw.x11.xi.minor = 1;
 
             if (XIQueryVersion(_glfw.x11.display,
                                &_glfw.x11.xi.major,
                                &_glfw.x11.xi.minor) == Success)
             {
                 _glfw.x11.xi.available = GLFW_TRUE;
+                _glfw.x11.xi.rawScroll = GLFW_TRUE;
+                printf("Have raw scroll!\n");
+            }
+            else
+            {
+                _glfw.x11.xi.minor = 0;
+
+                if (XIQueryVersion(_glfw.x11.display,
+                                &_glfw.x11.xi.major,
+                                &_glfw.x11.xi.minor) == Success)
+                {
+                    _glfw.x11.xi.available = GLFW_TRUE;
+                }
             }
         }
     }
